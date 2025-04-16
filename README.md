@@ -9,6 +9,12 @@ name_value: int;
 ```bash
 name_value = 5;
 ```
+
+Операторы сложения, вычитания, деления, умножения:
+```bash
+name_value = ((val1 + val2) * 2) / 1 - 1;
+```
+
 Вывести в консоль можно так:
 ```bash
 consoleout(name_value);

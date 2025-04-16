@@ -1,15 +1,28 @@
 val1: int;
 val2: int;
+
 val1 = 5;
 val2 = 3;
 
 consoleout(val1 + val2);
 
-if (val1 > val2) {
+if ((val1 - 1) > (val2 * 5 - 10)) {
     consoleout(val1);
 } else {
     consoleout(val2);
 }
+
+age: int;
+age = 30;
+
+if ((age / 2) > 16) {
+    consoleout((age / 2));
+}
+
+prval: int;
+prval = age / 10;
+
+consoleout(prval);
 
 val3 = (val1 + val2) * 2;
 consoleout(val3);
