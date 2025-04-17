@@ -1,53 +1,63 @@
 <h1><b>Сейчас есть:</b></h1> 
-Целый тип данных
+Типы данных:
+ - int;
+ - str;
+ - float;
 
-Создать переменную целого типа можно так:
+Создать переменную можно так:
 ```bash
-name_value: int;
+intValue: int;
+strValue: str;
+floatValue: float;
 ```
 Присвоить значение можно так:
 ```bash
-name_value = 5;
+intValue = 5;
+strValue = "Hello World!";
+floatValue = 3.1415;
 ```
 
 Операторы сложения, вычитания, деления, умножения:
 ```bash
-name_value = ((val1 + val2) * 2) / 1 - 1;
+intValue = ((val1 + val2) * 2) / 1 - 1;
+floatValue = ((val1 + val2) * 2.0) / 3.0 - 1.0;
 ```
 
 Вывести в консоль можно так:
 ```bash
-consoleout(name_value);
+consoleout(anyValue);
 ```
-Ветвление стндартное без нескольких вложенностей:
+Условия, возможны множественные условия, блок else - не обязательный:
 ```bash
-if (name_val > 5) {
+if (intValue > 5) {
   ...
 } else {
   ...
 }
+#Или несколько условий, где && - И; || - или
+if (intValue > 1 && floatValue > 1.0) {
+  ...
+} 
+
+if (intValue > 1 || floatValue > 1.0) {
+  ...
+}
 ```
+
+
 Для запуска нужно создать файл с исходным кодом, расширением evg
 запуск пока работает так:
 ```bash
 cargo run file_name.evg
 ```
 
-Пример исполняемого файла:
+Пример исполняемого файла, который выводит все четные целые от 0 до 5:
 ```bash
-val1: int;
-val2: int;
-val1 = 5;
-val2 = 3;
-
-consoleout(val1 + val2);
-
-if (val1 > val2) {
-    consoleout(val1);
-} else {
-    consoleout(val2);
+for (i = 0; i < 5; i + 1) {
+    d: int;
+    d = i / 2;
+    if (d * 2 == i) {
+        consoleout(i);
+    }
 }
-
-val3 = (val1 + val2) * 2;
-consoleout(val3);
 ```

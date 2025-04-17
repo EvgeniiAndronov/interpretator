@@ -1,28 +1,39 @@
-val1: int;
-val2: int;
-
-val1 = 5;
-val2 = 3;
-
-consoleout(val1 + val2);
-
-if ((val1 - 1) > (val2 * 5 - 10)) {
-    consoleout(val1);
-} else {
-    consoleout(val2);
+for (i = 0; i < 5; i + 1) {
+    d: int;
+    d = i / 2;
+    if (d * 2 == i) {
+        consoleout(i);
+    }
 }
 
-age: int;
-age = 30;
-
-if ((age / 2) > 16) {
-    consoleout((age / 2));
+j: int;
+for (j = 10; j > 0; j - 1) {
+    consoleout(j);
 }
 
-prval: int;
-prval = age / 10;
+pi: float;
+pi = 3.1415;
+consoleout(pi + 1.0);
 
-consoleout(prval);
+word: str;
+word = "Hello World!";
+consoleout(word);
 
-val3 = (val1 + val2) * 2;
-consoleout(val3);
+val1: float;
+val2: float;
+
+val1 = 2.3;
+val2 = 1.7;
+
+floatValue: float;
+floatValue = ((val1 + val2) * 2.0) / 3.0 - 1.0;
+
+consoleout(floatValue);
+
+if (val1 > 1.0 && val2 > 1.0) {
+    consoleout("Upper 1");
+}
+
+if (val1 > 100.0 || val2 > 1.0) {
+    consoleout("Upper 100");
+}
