@@ -1,6 +1,10 @@
+[[bin]]
+name = "lengevg"
+path = "src/main.rs"
+
 [package]
-name = "simple_lang"
+name = "lengevg"
 version = "0.1.0"
-edition = "2024"
+description = "Interpreter for Evgenii's language"
 
 [dependencies]
