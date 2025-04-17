@@ -25,8 +25,7 @@ enum Type {
     Str,
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum Expr {
     Literal(i32),
     LiteralFloat(f64),
@@ -107,7 +106,7 @@ impl Interpreter {
                     },
                     _ => panic!("Type mismatch for operation"),
                 }
-            },
+            }
             Expr::Grouped(expr) => self.eval_expr(expr),
         }
     }
@@ -119,16 +118,18 @@ impl Interpreter {
                 match var_type {
                     Type::Int => self.variables.insert(name.clone(), Value::Int(0)),
                     Type::Float => self.variables.insert(name.clone(), Value::Float(0.0)),
-                    Type::Str => self.variables.insert(name.clone(), Value::String(String::new())),
+                    Type::Str => self
+                        .variables
+                        .insert(name.clone(), Value::String(String::new())),
                 };
             }
             Statement::Assignment(name, expr) => {
                 let value = self.eval_expr(expr);
                 if let Some(var_type) = self.var_types.get(name) {
                     match (var_type, &value) {
-                        (Type::Int, Value::Int(_)) |
-                        (Type::Float, Value::Float(_)) |
-                        (Type::Str, Value::String(_)) => {
+                        (Type::Int, Value::Int(_))
+                        | (Type::Float, Value::Float(_))
+                        | (Type::Str, Value::String(_)) => {
                             self.variables.insert(name.clone(), value);
                         }
                         _ => panic!("Type mismatch for variable {}", name),
@@ -213,10 +214,11 @@ fn tokenize(input: &str) -> Vec<Token> {
             '+' | '-' | '=' | '*' | '/' | '>' | '<' | '!' | '&' | '|' => {
                 let mut op = c.to_string();
                 if let Some(&next) = chars.peek() {
-                    if (c == '=' && next == '=') ||
-                        (c == '!' && next == '=') ||
-                        (c == '&' && next == '&') ||
-                        (c == '|' && next == '|') {
+                    if (c == '=' && next == '=')
+                        || (c == '!' && next == '=')
+                        || (c == '&' && next == '&')
+                        || (c == '|' && next == '|')
+                    {
                         op.push(chars.next().unwrap());
                     }
                 }
@@ -462,12 +464,13 @@ fn parse_statement(tokens: &[Token], pos: &mut usize) -> Result<Statement, Strin
             expect_token(tokens, pos, Token::RParen)?;
             let then_block = parse_block(tokens, pos)?;
 
-            let else_block = if *pos < tokens.len() && tokens[*pos] == Token::Keyword("else".to_string()) {
-                *pos += 1;
-                Some(parse_block(tokens, pos)?)
-            } else {
-                None
-            };
+            let else_block =
+                if *pos < tokens.len() && tokens[*pos] == Token::Keyword("else".to_string()) {
+                    *pos += 1;
+                    Some(parse_block(tokens, pos)?)
+                } else {
+                    None
+                };
 
             Ok(Statement::If(cond, then_block, else_block))
         }
@@ -507,7 +510,6 @@ fn parse_statement(tokens: &[Token], pos: &mut usize) -> Result<Statement, Strin
     }
 }
 
-
 fn parse_block(tokens: &[Token], pos: &mut usize) -> Result<Vec<Statement>, String> {
     expect_token(tokens, pos, Token::LBrace)?;
     let mut statements = Vec::new();
@@ -525,7 +527,10 @@ fn expect_token(tokens: &[Token], pos: &mut usize, expected: Token) -> Result<()
         return Err(format!("Expected {:?} but reached end of input", expected));
     }
     if tokens[*pos] != expected {
-        return Err(format!("Expected {:?} but found {:?}", expected, tokens[*pos]));
+        return Err(format!(
+            "Expected {:?} but found {:?}",
+            expected, tokens[*pos]
+        ));
     }
     *pos += 1;
     Ok(())
@@ -559,7 +564,7 @@ fn main() {
 
     let filename = &args[1];
     let code_from_file = fs::read_to_string(filename);
-    let code:&str = &code_from_file.unwrap();
+    let code: &str = &code_from_file.unwrap();
 
     let tokens = tokenize(code);
     let program = parse_program(&tokens);
