@@ -160,7 +160,12 @@ impl Interpreter {
             }
             Statement::For(var, init, cond, update, body) => {
                 // Создаем переменную цикла
-                self.var_types.insert(var.clone(), Type::Int);
+                let var_type = match self.eval_expr(init) {
+                    Value::Int(_) => Type::Int,
+                    Value::Float(_) => Type::Float,
+                    _ => panic!("Unsupported type in for loop"),
+                };
+                self.var_types.insert(var.clone(), var_type);
                 self.variables.insert(var.clone(), Value::Int(0));
 
                 // Инициализируем переменную
@@ -557,16 +562,22 @@ fn parse_program(tokens: &[Token]) -> Vec<Statement> {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+
     if args.len() < 2 {
-        eprintln!("Usage: {} <file>", args[0]);
+        eprintln!("Usage: lengevg <filename.evg>");
         std::process::exit(1);
     }
 
     let filename = &args[1];
-    let code_from_file = fs::read_to_string(filename);
-    let code: &str = &code_from_file.unwrap();
+    let code = match fs::read_to_string(filename) {
+        Ok(code) => code,
+        Err(e) => {
+            eprintln!("Error reading file {}: {}", filename, e);
+            std::process::exit(1);
+        }
+    };
 
-    let tokens = tokenize(code);
+    let tokens = tokenize(&code);
     let program = parse_program(&tokens);
     let mut interpreter = Interpreter::new();
     interpreter.execute_block(&program);
