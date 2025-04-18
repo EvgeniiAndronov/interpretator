@@ -28,6 +28,11 @@ cargo build --release
 sudo cp target/release/lege /usr/local/bin/
 ```
 
+Запуск скрипта:
+```bash
+lege main.evg
+```
+
 <h1>Синтаксис и возможности</h1>
 
 Всего есть три типа данных, целые числа, строки, числа с плавающей точкой:
