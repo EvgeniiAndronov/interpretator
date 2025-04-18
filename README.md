@@ -18,7 +18,7 @@ Rust is installed now. Great!
 
 Затем нужно склонировать репозиторий к себе, на локаль:
 ```bash
-git clone https://github.com/EvgeniiAndronov/interpretator
+git clone https://github.com/EvgeniiAndronov/lege_lang
 ```
 
 Затем собрать проект и перенести его в PATH:
