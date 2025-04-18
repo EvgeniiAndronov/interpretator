@@ -1,15 +1,42 @@
-<h1><b>Сейчас есть:</b></h1> 
-Типы данных:
- - int;
- - str;
- - float;
+<h1>Для начала работы предпримите следующие шаги:</h1>
+Необходимо установить Rust:
 
-Создать переменную можно так:
+Linux/MacOS ввести в консоль:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+``` 
+
+Windows скачать и установить:
+```http
+https://win.rustup.rs
+```
+
+После успешной установки будет следующее сообщение:
+```
+Rust is installed now. Great!
+```
+
+Затем нужно склонировать репозиторий к себе, на локаль:
+```bash
+git clone https://github.com/EvgeniiAndronov/interpretator
+```
+
+Затем собрать проект и перенести его в PATH:
+```bash
+cd interpretator
+cargo build --release
+sudo cp target/release/lengevg /usr/local/bin/
+```
+
+<h1>Синтаксис и возможности</h1>
+
+Всего есть три типа данных, целые числа, строки, числа с плавающей точкой:
 ```bash
 intValue: int;
 strValue: str;
 floatValue: float;
 ```
+
 Присвоить значение можно так:
 ```bash
 intValue = 5;
@@ -21,6 +48,8 @@ floatValue = 3.1415;
 ```bash
 intValue = ((val1 + val2) * 2) / 1 - 1;
 floatValue = ((val1 + val2) * 2.0) / 3.0 - 1.0;
+strValue = strVal1 + strVal2;
+
 ```
 
 Вывести в консоль можно так:
@@ -59,10 +88,12 @@ for (i = 1; i < 10; i+2) {
 }
 ```
 
-Для запуска нужно создать файл с исходным кодом, расширением evg
-запуск пока работает так:
+Работа с массивами:
 ```bash
-cargo run file_name.evg
+array myArray[int, 5]; # Создание массива с типом int, размером 5 элементов, именем myArray  
+myArray[0] = 1; # Значения присваиваются по индексу, нумерация с нуля
+myValInt = myArray[0]; # В созданные переменные можно записывать значения элементов массива
+# При создании массива, по дефолту пишутся значения в ячейки массива, для int = 0; float = 0.0; str = ""; 
 ```
 
 Пример исполняемого файла, который выводит все четные целые от 0 до 5:
@@ -81,4 +112,40 @@ res: int;
 for (i = 0; i < 10; i+1) {
     res = res + i;
 }
+```
+
+Вот пример поиска числа Фибоначи:
+```bash
+o: int;
+o = 1;
+l: int;
+l = 0;
+r: int;
+r = 1;
+num: int;
+num = 35;
+
+for (i = 0; i < num; i + 1) {
+    l = o + r;
+    o = r;
+    r = l;
+}
+
+consoleout(l);
+consoleout("Номер этого элемента");
+consoleout(num + 2);
+```
+
+Пример работы с массивами
+```bash
+array myArray[int, 10];
+
+for (i = 0; i < 10; i+1) {
+  myArray[i] = i + 3;
+}
+
+if (myArray[0] > myArray[1]) {
+  consoleout("[0] > [1]");
+}
+consoleout(myArray);
 ```
