@@ -6,5 +6,6 @@ path = "src/main.rs"
 name = "lengevg"
 version = "0.1.0"
 description = "Interpreter for Evgenii's language"
+edition = "2024"
 
 [dependencies]

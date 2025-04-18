@@ -16,6 +16,10 @@ enum Token {
     RParen,
     LBrace,
     RBrace,
+    LBracket,
+    RBracket,
+    KeywordArray,
+    KeywordAddB,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,6 +27,21 @@ enum Type {
     Int,
     Float,
     Str,
+    Array(Box<Type>, usize),
+}
+
+impl Type {
+    fn default_value(&self) -> Value {
+        match self {
+            Type::Int => Value::Int(0),
+            Type::Float => Value::Float(0.0),
+            Type::Str => Value::String(String::new()),
+            Type::Array(t, size) => {
+                let default = t.default_value();
+                Value::Array(vec![default; *size], t.clone(), *size)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +52,8 @@ enum Expr {
     Identifier(String),
     BinaryOp(Box<Expr>, String, Box<Expr>),
     Grouped(Box<Expr>),
+    ArrayIndex(Box<Expr>, Box<Expr>),
+    ArrayLiteral(Vec<Expr>),
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +62,7 @@ enum Value {
     Float(f64),
     String(String),
     Bool(bool),
+    Array(Vec<Value>, Box<Type>, usize),
 }
 
 #[derive(Debug)]
@@ -51,6 +73,9 @@ enum Statement {
     If(Expr, Vec<Statement>, Option<Vec<Statement>>),
     For(String, Expr, Expr, Expr, Vec<Statement>),
     Block(Vec<Statement>),
+    ArrayDecl(String, Box<Type>, usize),
+    ArrayAdd(String, Expr),
+    ArrayAssignment(String, Expr, Expr),
 }
 
 struct Interpreter {
@@ -63,6 +88,16 @@ impl Interpreter {
         Interpreter {
             variables: HashMap::new(),
             var_types: HashMap::new(),
+        }
+    }
+
+    fn check_types(value: &Value, expected_type: &Type) -> bool {
+        match (value, expected_type) {
+            (Value::Int(_), Type::Int) => true,
+            (Value::Float(_), Type::Float) => true,
+            (Value::String(_), Type::Str) => true,
+            (Value::Array(_, t, _), Type::Array(expected_t, _)) => t == expected_t,
+            _ => false,
         }
     }
 
@@ -106,8 +141,21 @@ impl Interpreter {
                     },
                     _ => panic!("Type mismatch for operation"),
                 }
-            }
+            },
             Expr::Grouped(expr) => self.eval_expr(expr),
+            Expr::ArrayIndex(arr_expr, index_expr) => {
+                let arr = self.eval_expr(arr_expr);
+                let index = self.eval_expr(index_expr);
+                if let (Value::Array(elements, _, _), Value::Int(i)) = (arr, index) {
+                    if i < 0 || i >= elements.len() as i32 {
+                        panic!("Array index out of bounds");
+                    }
+                    elements[i as usize].clone()
+                } else {
+                    panic!("Invalid array access");
+                }
+            },
+            Expr::ArrayLiteral(_) => todo!("Implement array literals"),
         }
     }
 
@@ -118,26 +166,66 @@ impl Interpreter {
                 match var_type {
                     Type::Int => self.variables.insert(name.clone(), Value::Int(0)),
                     Type::Float => self.variables.insert(name.clone(), Value::Float(0.0)),
-                    Type::Str => self
-                        .variables
-                        .insert(name.clone(), Value::String(String::new())),
+                    Type::Str => self.variables.insert(name.clone(), Value::String(String::new())),
+                    Type::Array(..) => panic!("Array declaration should use ArrayDecl"),
                 };
-            }
+            },
+            Statement::ArrayDecl(name, elem_type, size) => {
+                let array_type = Type::Array(elem_type.clone(), *size);
+                let default_value = array_type.default_value();
+                self.var_types.insert(name.clone(), array_type);
+                self.variables.insert(name.clone(), default_value);
+            },
+            Statement::ArrayAdd(name, value_expr) => {
+                let value = self.eval_expr(value_expr);
+                if let Some(Value::Array(elements, elem_type, size)) = self.variables.get_mut(name) {
+                    if elements.len() >= *size {
+                        panic!("Array overflow");
+                    }
+                    if !Self::check_types(&value, elem_type) {
+                        panic!("Type mismatch in array add");
+                    }
+                    elements.push(value);
+                } else {
+                    panic!("Array {} not found", name);
+                }
+            },
+            Statement::ArrayAssignment(name, index_expr, value_expr) => {
+                let index = self.eval_expr(index_expr);
+                let value = self.eval_expr(value_expr);
+                let (elements, elem_type) = match self.variables.get_mut(name) {
+                    Some(Value::Array(e, t, _)) => (e, t),
+                    _ => panic!("Array {} not found", name),
+                };
+
+                if !Self::check_types(&value, elem_type) {
+                    panic!("Type mismatch in array assignment");
+                }
+
+                if let Value::Int(i) = index {
+                    if i < 0 || i >= elements.len() as i32 {
+                        panic!("Array index out of bounds");
+                    }
+                    elements[i as usize] = value;
+                } else {
+                    panic!("Array index must be integer");
+                }
+            },
             Statement::Assignment(name, expr) => {
                 let value = self.eval_expr(expr);
                 if let Some(var_type) = self.var_types.get(name) {
                     match (var_type, &value) {
-                        (Type::Int, Value::Int(_))
-                        | (Type::Float, Value::Float(_))
-                        | (Type::Str, Value::String(_)) => {
+                        (Type::Int, Value::Int(_)) |
+                        (Type::Float, Value::Float(_)) |
+                        (Type::Str, Value::String(_)) => {
                             self.variables.insert(name.clone(), value);
-                        }
+                        },
                         _ => panic!("Type mismatch for variable {}", name),
                     }
                 } else {
                     panic!("Undefined variable {}", name);
                 }
-            }
+            },
             Statement::ConsoleOut(expr) => {
                 let value = self.eval_expr(expr);
                 match value {
@@ -145,8 +233,22 @@ impl Interpreter {
                     Value::Float(f) => println!("{}", f),
                     Value::String(s) => println!("{}", s),
                     Value::Bool(b) => println!("{}", b),
+                    Value::Array(elements, _, _) => {
+                        print!("[");
+                        for (i, elem) in elements.iter().enumerate() {
+                            if i > 0 { print!(", "); }
+                            match elem {
+                                Value::Int(n) => print!("{}", n),
+                                Value::Float(f) => print!("{}", f),
+                                Value::String(s) => print!("{}", s),
+                                Value::Bool(b) => print!("{}", b),
+                                _ => print!("?"),
+                            }
+                        }
+                        println!("]");
+                    }
                 }
-            }
+            },
             Statement::If(cond, then_block, else_block) => {
                 let cond_val = match self.eval_expr(cond) {
                     Value::Bool(b) => b,
@@ -157,41 +259,23 @@ impl Interpreter {
                 } else if let Some(block) = else_block {
                     self.execute_block(block);
                 }
-            }
+            },
             Statement::For(var, init, cond, update, body) => {
-                // Создаем переменную цикла
-                let var_type = match self.eval_expr(init) {
-                    Value::Int(_) => Type::Int,
-                    Value::Float(_) => Type::Float,
-                    _ => panic!("Unsupported type in for loop"),
-                };
-                self.var_types.insert(var.clone(), var_type);
-                self.variables.insert(var.clone(), Value::Int(0));
-
-                // Инициализируем переменную
+                self.exec(&Statement::VarDecl(var.clone(), Type::Int));
                 self.exec(&Statement::Assignment(var.clone(), init.clone()));
-
                 loop {
-                    // Проверяем условие
                     let cond_val = match self.eval_expr(cond) {
                         Value::Bool(b) => b,
-                        _ => panic!("For loop condition must evaluate to boolean"),
+                        _ => panic!("For loop condition must be boolean"),
                     };
-
-                    if !cond_val {
-                        break;
-                    }
-
-                    // Выполняем тело цикла
+                    if !cond_val { break; }
                     self.execute_block(body);
-
-                    // Обновляем переменную
                     self.exec(&Statement::Assignment(var.clone(), update.clone()));
                 }
-            }
+            },
             Statement::Block(statements) => {
                 self.execute_block(statements);
-            }
+            },
         }
     }
 
@@ -260,6 +344,8 @@ fn tokenize(input: &str) -> Vec<Token> {
                     tokens.push(Token::Literal(num.parse().unwrap()));
                 }
             }
+            '[' => tokens.push(Token::LBracket),
+            ']' => tokens.push(Token::RBracket),
             _ if c.is_alphabetic() => {
                 let mut ident = String::new();
                 ident.push(c);
@@ -281,6 +367,8 @@ fn tokenize(input: &str) -> Vec<Token> {
                     "else" => tokens.push(Token::Keyword("else".to_string())),
                     "for" => tokens.push(Token::Keyword("for".to_string())),
                     "consoleout" => tokens.push(Token::Keyword("consoleout".to_string())),
+                    "array" => tokens.push(Token::KeywordArray),
+                    "addB" => tokens.push(Token::KeywordAddB),
                     _ => tokens.push(Token::Identifier(ident)),
                 }
             }
@@ -390,8 +478,63 @@ fn parse_multiplicative(tokens: &[Token], pos: &mut usize) -> Result<Expr, Strin
     Ok(left)
 }
 
+fn parse_array_declaration(tokens: &[Token], pos: &mut usize) -> Result<Statement, String> {
+    expect_token(tokens, pos, Token::KeywordArray)?;
+
+    let name = match &tokens[*pos] {
+        Token::Identifier(name) => name.clone(),
+        _ => return Err("Expected array name".to_string()),
+    };
+    *pos += 1;
+
+    expect_token(tokens, pos, Token::LBracket)?;
+
+    let elem_type = match &tokens[*pos] {
+        Token::Keyword(kw) => match kw.as_str() {
+            "int" => Type::Int,
+            "float" => Type::Float,
+            "str" => Type::Str,
+            _ => return Err("Invalid array element type".to_string()),
+        },
+        _ => return Err("Expected array element type".to_string()),
+    };
+    *pos += 1;
+
+    expect_token(tokens, pos, Token::Comma)?;
+
+    let size = match &tokens[*pos] {
+        Token::Literal(n) => *n as usize,
+        _ => return Err("Expected array size".to_string()),
+    };
+    *pos += 1;
+
+    expect_token(tokens, pos, Token::RBracket)?;
+    expect_token(tokens, pos, Token::Semicolon)?;
+
+    Ok(Statement::ArrayDecl(name, Box::new(elem_type), size))
+}
+
+fn parse_array_add(tokens: &[Token], pos: &mut usize) -> Result<Statement, String> {
+    let name = match &tokens[*pos] {
+        Token::Identifier(name) => name.clone(),
+        _ => return Err("Expected array name".to_string()),
+    };
+    *pos += 1;
+
+    expect_token(tokens, pos, Token::KeywordAddB)?;
+    expect_token(tokens, pos, Token::LParen)?;
+
+    let value = parse_expression(tokens, pos)?;
+
+    expect_token(tokens, pos, Token::RParen)?;
+    expect_token(tokens, pos, Token::Semicolon)?;
+
+    Ok(Statement::ArrayAdd(name, value))
+}
+
 fn parse_primary(tokens: &[Token], pos: &mut usize) -> Result<Expr, String> {
     match &tokens[*pos] {
+        Token::LBracket => parse_array_literal(tokens, pos),
         Token::Literal(n) => {
             *pos += 1;
             Ok(Expr::Literal(*n))
@@ -405,16 +548,23 @@ fn parse_primary(tokens: &[Token], pos: &mut usize) -> Result<Expr, String> {
             Ok(Expr::LiteralString(s.clone()))
         }
         Token::Identifier(name) => {
+            let name = name.clone();
             *pos += 1;
-            Ok(Expr::Identifier(name.clone()))
+
+            // Добавляем обработку доступа по индексу
+            if *pos < tokens.len() && tokens[*pos] == Token::LBracket {
+                *pos += 1;
+                let index = parse_expression(tokens, pos)?;
+                expect_token(tokens, pos, Token::RBracket)?;
+                Ok(Expr::ArrayIndex(Box::new(Expr::Identifier(name)), Box::new(index)))
+            } else {
+                Ok(Expr::Identifier(name))
+            }
         }
         Token::LParen => {
             *pos += 1;
             let expr = parse_expression(tokens, pos)?;
-            if *pos >= tokens.len() || tokens[*pos] != Token::RParen {
-                return Err("Expected closing parenthesis".to_string());
-            }
-            *pos += 1;
+            expect_token(tokens, pos, Token::RParen)?;
             Ok(Expr::Grouped(Box::new(expr)))
         }
         _ => Err("Expected number, identifier or parenthesis".to_string()),
@@ -422,10 +572,9 @@ fn parse_primary(tokens: &[Token], pos: &mut usize) -> Result<Expr, String> {
 }
 
 fn parse_for_loop(tokens: &[Token], pos: &mut usize) -> Result<Statement, String> {
-    *pos += 1; // Пропускаем "for"
+    *pos += 1;
     expect_token(tokens, pos, Token::LParen)?;
 
-    // Парсим инициализацию (i = 0)
     let var = match &tokens[*pos] {
         Token::Identifier(name) => name.clone(),
         _ => return Err("Expected identifier in for loop initialization".to_string()),
@@ -435,19 +584,32 @@ fn parse_for_loop(tokens: &[Token], pos: &mut usize) -> Result<Statement, String
     let init = parse_expression(tokens, pos)?;
     expect_token(tokens, pos, Token::Semicolon)?;
 
-    // Парсим условие (i < 10)
     let cond = parse_expression(tokens, pos)?;
     expect_token(tokens, pos, Token::Semicolon)?;
 
-    // Парсим обновление (i + 1)
     let update = parse_expression(tokens, pos)?;
     expect_token(tokens, pos, Token::RParen)?;
 
-    // Парсим тело цикла
     let body = parse_block(tokens, pos)?;
 
     Ok(Statement::For(var, init, cond, update, body))
 }
+
+fn parse_array_literal(tokens: &[Token], pos: &mut usize) -> Result<Expr, String> {
+    expect_token(tokens, pos, Token::LBracket)?;
+    let mut elements = Vec::new();
+
+    while *pos < tokens.len() && tokens[*pos] != Token::RBracket {
+        elements.push(parse_expression(tokens, pos)?);
+        if *pos < tokens.len() && tokens[*pos] == Token::Comma {
+            *pos += 1;
+        }
+    }
+
+    expect_token(tokens, pos, Token::RBracket)?;
+    Ok(Expr::ArrayLiteral(elements))
+}
+
 fn parse_statement(tokens: &[Token], pos: &mut usize) -> Result<Statement, String> {
     if *pos >= tokens.len() {
         return Err("Unexpected end of input".to_string());
@@ -469,42 +631,65 @@ fn parse_statement(tokens: &[Token], pos: &mut usize) -> Result<Statement, Strin
             expect_token(tokens, pos, Token::RParen)?;
             let then_block = parse_block(tokens, pos)?;
 
-            let else_block =
-                if *pos < tokens.len() && tokens[*pos] == Token::Keyword("else".to_string()) {
-                    *pos += 1;
-                    Some(parse_block(tokens, pos)?)
-                } else {
-                    None
-                };
+            let else_block = if *pos < tokens.len() && tokens[*pos] == Token::Keyword("else".to_string()) {
+                *pos += 1;
+                Some(parse_block(tokens, pos)?)
+            } else {
+                None
+            };
 
             Ok(Statement::If(cond, then_block, else_block))
         }
         Token::Keyword(kw) if kw == "for" => parse_for_loop(tokens, pos),
+        Token::KeywordArray => parse_array_declaration(tokens, pos),
+        Token::Identifier(name) if peek(tokens, *pos + 1, Token::KeywordAddB) => {
+            parse_array_add(tokens, pos)
+        }
         Token::Identifier(name) => {
             let name = name.clone();
             *pos += 1;
 
-            if *pos < tokens.len() && tokens[*pos] == Token::Colon {
-                *pos += 1;
+            if *pos < tokens.len() {
                 match &tokens[*pos] {
-                    Token::Keyword(kw) => {
-                        let var_type = match kw.as_str() {
-                            "int" => Type::Int,
-                            "float" => Type::Float,
-                            "str" => Type::Str,
-                            _ => return Err(format!("Unknown type: {}", kw)),
-                        };
+                    Token::Colon => {
+                        // Обработка объявления переменной
                         *pos += 1;
-                        expect_token(tokens, pos, Token::Semicolon)?;
-                        Ok(Statement::VarDecl(name, var_type))
+                        match &tokens[*pos] {
+                            Token::Keyword(kw) => {
+                                let var_type = match kw.as_str() {
+                                    "int" => Type::Int,
+                                    "float" => Type::Float,
+                                    "str" => Type::Str,
+                                    _ => return Err(format!("Unknown type: {}", kw)),
+                                };
+                                *pos += 1;
+                                expect_token(tokens, pos, Token::Semicolon)?;
+                                Ok(Statement::VarDecl(name, var_type))
+                            }
+                            _ => Err("Expected variable type".to_string()),
+                        }
                     }
-                    _ => Err("Expected variable type".to_string()),
+                    Token::LBracket => {
+                        // Обработка присваивания по индексу array[index] = value
+                        *pos += 1;
+                        let index = parse_expression(tokens, pos)?;
+                        expect_token(tokens, pos, Token::RBracket)?;
+                        expect_token(tokens, pos, Token::Operator("=".to_string()))?;
+                        let value = parse_expression(tokens, pos)?;
+                        expect_token(tokens, pos, Token::Semicolon)?;
+                        Ok(Statement::ArrayAssignment(name, index, value))
+                    }
+                    Token::Operator(op) if op == "=" => {
+                        // Обычное присваивание
+                        *pos += 1;
+                        let expr = parse_expression(tokens, pos)?;
+                        expect_token(tokens, pos, Token::Semicolon)?;
+                        Ok(Statement::Assignment(name, expr))
+                    }
+                    _ => Err("Expected ':', '=' or '[' after identifier".to_string()),
                 }
             } else {
-                expect_token(tokens, pos, Token::Operator("=".to_string()))?;
-                let expr = parse_expression(tokens, pos)?;
-                expect_token(tokens, pos, Token::Semicolon)?;
-                Ok(Statement::Assignment(name, expr))
+                Err("Unexpected end of input".to_string())
             }
         }
         Token::LBrace => {
@@ -539,6 +724,10 @@ fn expect_token(tokens: &[Token], pos: &mut usize, expected: Token) -> Result<()
     }
     *pos += 1;
     Ok(())
+}
+
+fn peek(tokens: &[Token], pos: usize, expected: Token) -> bool {
+    tokens.get(pos) == Some(&expected)
 }
 
 fn parse_program(tokens: &[Token]) -> Vec<Statement> {
