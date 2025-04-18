@@ -25,7 +25,7 @@ git clone https://github.com/EvgeniiAndronov/interpretator
 ```bash
 cd interpretator
 cargo build --release
-sudo cp target/release/lengevg /usr/local/bin/
+sudo cp target/release/lege /usr/local/bin/
 ```
 
 <h1>Синтаксис и возможности</h1>
