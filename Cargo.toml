@@ -1,10 +1,10 @@
 [[bin]]
-name = "lengevg"
+name = "lege"
 path = "src/main.rs"
 
 [package]
-name = "lengevg"
-version = "0.1.0"
+name = "lege"
+version = "0.2.0"
 description = "Interpreter for Evgenii's language"
 edition = "2024"
 

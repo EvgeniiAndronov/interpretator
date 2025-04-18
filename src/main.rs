@@ -642,7 +642,7 @@ fn parse_statement(tokens: &[Token], pos: &mut usize) -> Result<Statement, Strin
         }
         Token::Keyword(kw) if kw == "for" => parse_for_loop(tokens, pos),
         Token::KeywordArray => parse_array_declaration(tokens, pos),
-        Token::Identifier(name) if peek(tokens, *pos + 1, Token::KeywordAddB) => {
+        Token::Identifier(_name) if peek(tokens, *pos + 1, Token::KeywordAddB) => {
             parse_array_add(tokens, pos)
         }
         Token::Identifier(name) => {
